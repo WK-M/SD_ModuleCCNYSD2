@@ -4,7 +4,7 @@
 - Ji-hye Hah
 - Muhammad Ahsan
 - Kendall Molas
-- Mentor: Fred Moshary
+- Mentor: Dr. Moshary 
 
 
 This is a repository that will hold any files for our senior design project.

@@ -10,8 +10,10 @@
 
 // Debugging Definitions
 #define DEBUG 1 // 0 - Turn off Serial prints, 1 - Turn on Serial Prints
-#define SD_DISABLED 0 // Set 0 to turn SD ON or Set 1 to turn SD OFF
+#define SD_DISABLED 0 // Set 0 to turn SD ONM or Set 1 to turn SD OFF
 #define TRANSMIT_ENABLED 1 // Set 0 to turn TRANSMISSION OFF or Set 1 to turn TRANSMISSION ON
+#define GPS_ENABLED 0 // Set 0 to turn ENABLE PIN OFF, or Set 1 to turn ENABLE PIN ON
+
 
 // MAX Sizes LoRA, GPS, BME
 #define TXLIMIT 450
@@ -23,15 +25,14 @@
 
 // GPS Definitions
 #define GPSSerial Serial1
+#define EN_PIN 6
 #define PGCMD_NOANTENNA "$PGCMD,33,0*6D"
 
 // BME Definitions
 #define SEALEVELPRESSURE_HPA (1013.25)
 
 // Time Delay
-#define TD 1000
-
-
+#define TD 3000
 
 // Feather M0 Definitions
 #define RFM95_CS 8
@@ -72,7 +73,13 @@ void setup() {
   // LoRA is on when RFM95_CS is LOW
   pinMode( RFM95_CS, OUTPUT );
   digitalWrite( RFM95_CS, HIGH );
-  delay(1000);
+
+  #if ( GPS_ENABLED )
+  pinMode( EN_PIN, OUTPUT );
+  digitalWrite( EN_PIN, HIGH );
+  #endif
+
+  delay(2000);
 
   counter = 0; // counter is set to zero because GPS sends out data 3 times.
   filename = "";
@@ -80,12 +87,14 @@ void setup() {
   initSD();
   initGPS();
   initBME();
-  digitalWrite( SD_CS, LOW ); // Turn low in order to initialize LoRA Properly
-  delay(1000);
+  //digitalWrite( SD_CS, LOW ); // Turn low in order to initialize LoRA Properly
   initLoRA();
   digitalWrite( RFM95_CS, HIGH ); // Write high to turn LoRA off after initialization
-  radio.sleep(); // Sleep radio in the meantime
-  delay(1000);
+  #if ( GPS_ENABLED )
+  digitalWrite( EN_PIN, LOW );
+  #endif
+  rf95.sleep(); // Sleep radio in the meantime
+  delay(3000);
 }
 
 void initSD(void) {
@@ -293,11 +302,18 @@ void transmit( char* tx_ready ) {
 #endif
 
   rf95.send( ( uint8_t* )tx_ready, TXLIMIT );
-  rf95.waitPacketSent(2000);
+  rf95.waitPacketSent();
+#if ( DEBUG )
+          Serial.println(" TRANSMITTED SUCCESSFULLY " );
+#endif
 }
 
 void loop() {
 
+  #if ( GPS_ENABLED )
+  digitalWrite( EN_PIN, HIGH );
+  #endif
+  
   char* _data = recordGPS();
 
   // Time delay is a function of TD + counter*1000 +1/-1 + Time to receive new NMEA + Time to receive new fix.
@@ -329,30 +345,34 @@ void loop() {
 #endif
 
         digitalWrite( RFM95_CS, HIGH );
-        delay(500);
-        digitalWrite( SD_CS, HIGH );
-
         // Write the retrieved data to the SD Card
+        //SD.begin( SD_CS );
         currentFile = SD.open( filename.c_str(), FILE_WRITE );
+        #if ( DEBUG ) 
+          if ( !currentFile ) {
+            Serial.println(" SD NOT FOUND " );
+          }
+        #endif
         currentFile.print( txdata );
         currentFile.println( "------" );
         currentFile.close();
 
         // Toggle the Chip Select pin for SD Card off, and turn the LoRA Chip Select on.
-        digitalWrite( SD_CS, LOW );
-        delay(500);
+        //digitalWrite( SD_CS, LOW );
         digitalWrite( RFM95_CS, LOW );
 
         if ( TRANSMIT_ENABLED ) {
           // Transmit this data now.
           transmit( txdata );
+
 #if ( DEBUG )
-          Serial.println(" TRANSMITTED SUCCESSFULLY " );
-#endif
-          //if ( !rf95.sleep() && !Watchdog.sleep(4000) ) {
+          //if ( !rf95.sleep() && !Watchdog.sleep(2000) ) {
           if ( !rf95.sleep() ) {
-#if ( DEBUG )
+
             Serial.println( " ERROR WITH SLEEP " );
+            #if ( GPS_ENABLED)
+            digitalWrite( EN_PIN, LOW );
+            #endif
 #endif
           }
         }
@@ -361,7 +381,6 @@ void loop() {
       // TX data does not need to be freed since it is just an array of TXLIMIT SIZE
       // Clear txdata array
       memset( txdata, 0, sizeof txdata );
-      Serial.println("RESET");
     }
   }
   else {

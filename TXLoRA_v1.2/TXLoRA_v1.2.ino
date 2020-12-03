@@ -1,19 +1,17 @@
 #include <SD.h>
-#include <TimeLib.h>
 #include <Wire.h>
 #include <Adafruit_GPS.h>
 #include <SPI.h>
 #include <RH_RF95.h>
-#include <Adafruit_Sensor.h>
+#include <Adafruit_Sensor.h>  
 #include <Adafruit_BME280.h>
 #include <Adafruit_SleepyDog.h>
 
 // Debugging Definitions
 #define DEBUG 1 // 0 - Turn off Serial prints, 1 - Turn on Serial Prints
 #define SD_DISABLED 0 // Set 0 to turn SD ONM or Set 1 to turn SD OFF
-#define TRANSMIT_ENABLED 1 // Set 0 to turn TRANSMISSION OFF or Set 1 to turn TRANSMISSION ON
+#define TRANSMIT_ENABLED 1 // Set 0M to turn TRANSMISSION OFF or Set 1 to turn TRANSMISSION ON
 #define GPS_ENABLED 0 // Set 0 to turn ENABLE PIN OFF, or Set 1 to turn ENABLE PIN ON
-
 
 // MAX Sizes LoRA, GPS, BME
 #define TXLIMIT 450
@@ -78,6 +76,9 @@ void setup() {
   pinMode( EN_PIN, OUTPUT );
   digitalWrite( EN_PIN, HIGH );
   #endif
+
+  pinMode( SD_CS, OUTPUT );
+  digitalWrite( SD_CS, LOW );
 
   delay(2000);
 
@@ -205,6 +206,12 @@ void initBME(void) {
   Serial.println("-- BME 280 initialized successfully --");
 #endif
 
+  bme.setSampling(bme.MODE_FORCED, 
+                    bme.SAMPLING_X1,
+                    bme.SAMPLING_X1,
+                    bme.SAMPLING_X1,
+                    bme.FILTER_OFF);
+
 }
 
 void initLoRA(void) {
@@ -246,7 +253,7 @@ void initLoRA(void) {
   Serial.print("Set Freq to: ");
   Serial.println( RF95_FREQ );
 #endif
-  rf95.setTxPower( TXPOWER, true ); // Second parameter is true to prevent use of PA_BOOST
+  rf95.setTxPower( TXPOWER, false ); // Second parameter is true to prevent use of PA_BOOST
 
 }
 
@@ -269,6 +276,7 @@ char* recordGPS(void) {
 // BME Data outputted as: Temperature ( Celsius ), Pressure ( Pascal ), Altitude ( Meters ), Humidity ( Percentage )
 char* recordBME(void) {
   // String written like this to reduce heap allocations mentioned here: https://cpp4arduino.com/2018/11/21/eight-tips-to-use-the-string-class-efficiently.html
+  bme.takeForcedMeasurement();
   String _BMEdata = String( bme.readTemperature(), 4 );
   _BMEdata += ",";
   _BMEdata += String( bme.readPressure() / 100.0F, 4 );
@@ -298,13 +306,21 @@ void transmit( char* tx_ready ) {
   delay(500);
 
 #if ( DEBUG )
-  Serial.println("Transmitting...");
+  Serial.println("Data at transmit():");
+  Serial.println( tx_ready );
+  Serial.println("--------");
 #endif
 
-  rf95.send( ( uint8_t* )tx_ready, TXLIMIT );
-  rf95.waitPacketSent();
+  #if ( TRANSMIT_ENABLED )
+    Serial.println("Transmitting...");
+
+
+    rf95.send( ( uint8_t* )tx_ready, TXLIMIT );
+    rf95.waitPacketSent();
+  #endif
+  
 #if ( DEBUG )
-          Serial.println(" TRANSMITTED SUCCESSFULLY " );
+    Serial.println(" TRANSMITTED SUCCESSFULLY " );
 #endif
 }
 
@@ -360,21 +376,17 @@ void loop() {
         // Toggle the Chip Select pin for SD Card off, and turn the LoRA Chip Select on.
         //digitalWrite( SD_CS, LOW );
         digitalWrite( RFM95_CS, LOW );
+        delay(500);
 
-        if ( TRANSMIT_ENABLED ) {
-          // Transmit this data now.
-          transmit( txdata );
+        // Transmit this data now.
+        transmit( txdata );
+        if ( !rf95.sleep() && !Watchdog.sleep(4000) ) {
+        //if ( !rf95.sleep() ) {
 
-#if ( DEBUG )
-          //if ( !rf95.sleep() && !Watchdog.sleep(2000) ) {
-          if ( !rf95.sleep() ) {
-
-            Serial.println( " ERROR WITH SLEEP " );
-            #if ( GPS_ENABLED)
-            digitalWrite( EN_PIN, LOW );
-            #endif
-#endif
-          }
+          Serial.println( " ERROR WITH SLEEP " );
+          #if ( GPS_ENABLED )
+          digitalWrite( EN_PIN, LOW );
+          #endif
         }
       }
       counter = 0;

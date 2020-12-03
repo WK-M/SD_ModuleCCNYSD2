@@ -1,9 +1,6 @@
 // Receiver code which is plugged into a separate workstation.
-
-#include <TimeLib.h>
 #include <SPI.h>
 #include <RH_RF95.h>
-
 #define DEBUG 1
 #define TXLIMIT 450
 
@@ -29,7 +26,7 @@ void setup() {
   initLoRA();
   delay(1000);
 
-}m
+}
 
 void initLoRA(void) {
 
@@ -38,7 +35,7 @@ void initLoRA(void) {
 
   delay(100);
 
-  Serial.println("Feather LoRa TX Test!");
+  Serial.println("Feather LoRa RX Test!");
 
   // manual reset
   digitalWrite(RFM95_RST, LOW);
@@ -62,20 +59,19 @@ void initLoRA(void) {
 
   Serial.print("Set Freq to: ");
   Serial.println(RF95_FREQ);
-  rf95.setTxPower(23, false);
 
 }
 
 
 void loop() {
+  
   if (rf95.available()) {
-    uint8_t buf[2*TXLIMIT];
+    uint8_t buf[TXLIMIT];
     uint8_t len = sizeof(buf);
 
     if ( rf95.recv( buf, &len ) ) {
-      //RH_RF95::printBuffer("Received: ", buf, len);
       Serial.print("Got: ");
-      Serial.println((char*)buf);
+      Serial.println( (char*) buf);
       Serial.print("RSSI: ");
       Serial.println(rf95.lastRssi(), DEC);
     }

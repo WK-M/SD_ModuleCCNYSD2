@@ -8,9 +8,9 @@
 #include <Adafruit_SleepyDog.h>
 
 // Debugging Definitions
-#define DEBUG 1 // 0 - Turn off Serial prints, 1 - Turn on Serial Prints
+#define DEBUG 0 // 0 - Turn off Serial prints, 1 - Turn on Serial Prints
 #define SD_DISABLED 0 // Set 0 to turn SD ONM or Set 1 to turn SD OFF
-#define TRANSMIT_ENABLED 1 // Set 0M to turn TRANSMISSION OFF or Set 1 to turn TRANSMISSION ON
+#define TRANSMIT_ENABLED 1 // Set 0 to turn TRANSMISSION OFF or Set 1 to turn TRANSMISSION ON
 #define GPS_ENABLED 0 // Set 0 to turn ENABLE PIN OFF, or Set 1 to turn ENABLE PIN ON
 
 // MAX Sizes LoRA, GPS, BME
@@ -27,7 +27,9 @@
 #define PGCMD_NOANTENNA "$PGCMD,33,0*6D"
 
 // BME Definitions
-#define SEALEVELPRESSURE_HPA (1013.25)
+#define INHG 29.74
+#define CURRENT_HPA ( 33.8638816 * INHG )
+#define SEALEVELPRESSURE_HPA (CURRENT_HPA) // MUST MODIFY THE VALUE IN HERE
 
 // Time Delay
 #define TD 3000
@@ -312,8 +314,9 @@ void transmit( char* tx_ready ) {
 #endif
 
   #if ( TRANSMIT_ENABLED )
+    #if ( DEBUG )
     Serial.println("Transmitting...");
-
+    #endif
 
     rf95.send( ( uint8_t* )tx_ready, TXLIMIT );
     rf95.waitPacketSent();
@@ -380,14 +383,22 @@ void loop() {
 
         // Transmit this data now.
         transmit( txdata );
-        if ( !rf95.sleep() && !Watchdog.sleep(4000) ) {
+        if ( rf95.sleep() == false ) {
         //if ( !rf95.sleep() ) {
-
+          #if ( DEBUG )
           Serial.println( " ERROR WITH SLEEP " );
+          #endif
+          
           #if ( GPS_ENABLED )
           digitalWrite( EN_PIN, LOW );
           #endif
         }
+
+        Watchdog.sleep(4000);
+        #if ( DEBUG ) 
+          Serial.println(" SLEEP COMPLETED " );
+          #endif
+        
       }
       counter = 0;
       // TX data does not need to be freed since it is just an array of TXLIMIT SIZE

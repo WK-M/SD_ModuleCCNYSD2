@@ -10,6 +10,7 @@
 // User Variables 
 // Add/Remove/Modify variables that can vary from day to day.
 #define INHG 29.74 // Pressure of the area that BME280 Sensor will be testing in.
+#define REPORT_RATE 3000 // Rate at which data will be sent to the LoRA sensor
 
 // ----------------------------------------------------------------------------------------------
 // Code below this line does not need to touched! Only developers need to touch the code below.
@@ -38,9 +39,6 @@
 // BME Definitions
 #define CURRENT_HPA ( 33.8638816 * INHG )
 #define SEALEVELPRESSURE_HPA (CURRENT_HPA) // MUST MODIFY THE VALUE IN HERE
-
-// Time Delay
-#define TD 3000
 
 // Feather M0 Definitions
 #define RFM95_CS 8
@@ -343,8 +341,8 @@ void loop() {
   
   char* _data = recordGPS();
 
-  // Time delay is a function of TD + counter*1000 +1/-1 + Time to receive new NMEA + Time to receive new fix.
-  if ( ( millis() - TIM0 > TD ) && GPS.newNMEAreceived() ) {
+  // Time delay is a function of REPORT_RATE + counter*1000 +1/-1 + Time to receive new NMEA + Time to receive new fix.
+  if ( ( millis() - TIM0 > REPORT_RATE ) && GPS.newNMEAreceived() ) {
 
     strncat( txdata, _data, sizeof(char) * NMEALIMIT );
     memset( _data, 0, sizeof _data );

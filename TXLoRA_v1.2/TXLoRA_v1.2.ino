@@ -7,7 +7,16 @@
 #include <Adafruit_BME280.h>
 #include <Adafruit_SleepyDog.h>
 
-// Debugging Definitions
+// User Variables 
+// Add/Remove/Modify variables that can vary from day to day.
+#define INHG 29.74 // Pressure of the area that BME280 Sensor will be testing in.
+
+// ----------------------------------------------------------------------------------------------
+// Code below this line does not need to touched! Only developers need to touch the code below.
+// Users only need to touch "User Variables"
+// ----------------------------------------------------------------------------------------------
+
+// Developer Debugging Definitions
 #define DEBUG 0 // 0 - Turn off Serial prints, 1 - Turn on Serial Prints
 #define SD_DISABLED 0 // Set 0 to turn SD ONM or Set 1 to turn SD OFF
 #define TRANSMIT_ENABLED 1 // Set 0 to turn TRANSMISSION OFF or Set 1 to turn TRANSMISSION ON
@@ -27,7 +36,6 @@
 #define PGCMD_NOANTENNA "$PGCMD,33,0*6D"
 
 // BME Definitions
-#define INHG 29.74
 #define CURRENT_HPA ( 33.8638816 * INHG )
 #define SEALEVELPRESSURE_HPA (CURRENT_HPA) // MUST MODIFY THE VALUE IN HERE
 

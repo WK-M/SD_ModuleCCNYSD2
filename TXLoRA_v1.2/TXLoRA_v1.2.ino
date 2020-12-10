@@ -10,7 +10,7 @@
 // User Variables 
 // Add/Remove/Modify variables that can vary from day to day.
 #define INHG 29.74 // Pressure of the area that BME280 Sensor will be testing in.
-#define REPORT_RATE 3000 // Delay (MS) between data being retreived from GPS module and BME280, saving data to SD card, and transmitting it using LoRA
+#define REPORT_RATE 3000 // Delay between data being retreived from GPS module and BME280, saving data to SD card, and transmitting it using LoRA
 
 // ----------------------------------------------------------------------------------------------
 // Code below this line does not need to touched! Only developers need to touch the code below.

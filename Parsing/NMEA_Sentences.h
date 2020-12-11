@@ -52,7 +52,7 @@ typedef struct NMEA2 {
     float SOG;
     float COG;
     struct Date current_date;
-    float mag_var;
+    char mag_var[5];
     char ew_indicator;
     char mode;
 } GPRMC;

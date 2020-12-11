@@ -1,3 +1,4 @@
+// Takes in textfile as argument, delimiter is a comma
 #include <iostream>
 #include <vector>
 #include <string>
@@ -13,6 +14,7 @@ void parse_GGA_sentence( std::stringstream& , std::vector< GPGGA >&  );
 void parse_RMC_sentence( std::stringstream& , std::vector< GPRMC >&  );
 
 void print_GGA( GPGGA& );
+void print_RMC( GPRMC& );
 
 int main( int argc, char* argv[] ) {
     /*if ( argc < 2 ) {
@@ -28,8 +30,11 @@ int main( int argc, char* argv[] ) {
     while ( std::getline( file, line ) ) {
         std::stringstream ss( line );
         std::string GGA_RMC;
-        std::getline( ss, GGA_RMC, ',' );
+        std::getline( ss, GGA_RMC, ',');
 
+        #if ( DEBUG )
+            std::cout << line << std::endl;
+#endif 
         if ( !GGA_RMC.compare("$GPGGA") ) {
             parse_GGA_sentence( ss, GPGGA_data ); 
         }
@@ -37,7 +42,6 @@ int main( int argc, char* argv[] ) {
             parse_RMC_sentence( ss, GPRMC_data );
         }
     }
-    //print_GGA( GPGGA_data[0] );
     return 0;
 }
 
@@ -48,8 +52,8 @@ void parse_GGA_sentence( std::stringstream& pggas_ss, std::vector< GPGGA >& pgs_
     // Get UTC data
     std::getline( pggas_ss, temp,  ',' );
     if ( temp.length() == 10 ) { 
-        GGA.UTC.hour[0] = temp[0];
-        GGA.UTC.hour[1] = temp[1];
+        GGA.UTC.hour[0] = temp.at(0);
+        GGA.UTC.hour[1] = temp.at(1);
 
         GGA.UTC.minute[0] = temp[2];
         GGA.UTC.minute[1] = temp[3];
@@ -61,6 +65,7 @@ void parse_GGA_sentence( std::stringstream& pggas_ss, std::vector< GPGGA >& pgs_
         GGA.UTC.dec_seconds[1] = temp[8];
         GGA.UTC.dec_seconds[2] = temp[9];
     }
+
 
     std::getline( pggas_ss, temp, ',' );
     // Latitude
@@ -109,7 +114,7 @@ void parse_GGA_sentence( std::stringstream& pggas_ss, std::vector< GPGGA >& pgs_
 
     std::getline( pggas_ss, temp, ',' );
     GGA.HDOP = std::stof( temp );
-    
+
     std::getline( pggas_ss, temp, ',' );
     GGA.altitude = std::stof( temp );
 
@@ -211,7 +216,12 @@ void parse_RMC_sentence( std::stringstream& prmcs_ss, std::vector< GPRMC >& pgs_
     }
 
     std::getline( prmcs_ss, temp, ',' );
-    RMC.mag_var = std::stof( temp );
+    RMC.mag_var[0] = temp[0];
+    RMC.mag_var[1] = temp[1];
+    RMC.mag_var[2] = temp[2];
+    RMC.mag_var[3] = '.';
+    RMC.mag_var[4] = temp[4];
+
 
     std::getline( prmcs_ss, temp, ',' ); 
     RMC.ew_indicator = temp[0];
@@ -224,16 +234,15 @@ void parse_RMC_sentence( std::stringstream& prmcs_ss, std::vector< GPRMC >& pgs_
 
 // Debugging
 void print_GGA( GPGGA& p_GGA ) {
-    std::cout << p_GGA.UTC.hour[0] << p_GGA.UTC.hour[1] << p_GGA.UTC.minute[0] << p_GGA.UTC.minute[1] 
-        << p_GGA.UTC.seconds[0] << p_GGA.UTC.seconds[1] << "." << p_GGA.UTC.dec_seconds[0] << p_GGA.UTC.dec_seconds[1] << p_GGA.UTC.dec_seconds[2] << "," 
-        << p_GGA.Latitude.degrees[0] << p_GGA.Latitude.degrees[1] << p_GGA.Latitude.minutes_bd[0] << p_GGA.Latitude.minutes_bd[1]
-        << "." 
-        << p_GGA.Latitude.minutes_ad[0] << p_GGA.Latitude.minutes_ad[1] << p_GGA.Latitude.minutes_ad[2] << p_GGA.Latitude.minutes_ad[3] 
-        << p_GGA.Latitude.vert  << ","
-        << p_GGA.Longitude.degrees[0] << p_GGA.Longitude.degrees[1] <<  p_GGA.Longitude.degrees[2] 
-        << p_GGA.Longitude.minutes_bd[0] << p_GGA.Longitude.minutes_bd[1]
-        << p_GGA.Longitude.minutes_ad[0] << p_GGA.Longitude.minutes_ad[1] << p_GGA.Longitude.minutes_ad[2] << p_GGA.Longitude.minutes_ad[3]
-        << p_GGA.Longitude.horiz << ","
-        << p_GGA.fix << "," << p_GGA.num_sat << "," << p_GGA.HDOP <<  "," << p_GGA.altitude << "," << p_GGA.geo_separation
-        << "," << p_GGA.last_DGPS << "," << p_GGA.station_id << std::endl;
+    std::cout << print_time( p_GGA.UTC ) << "," << print_latitude( p_GGA.Latitude ) << "," << print_longitude( p_GGA.Longitude ) << ","
+        << p_GGA.fix << "," << p_GGA.num_sat << "," << p_GGA.HDOP <<  "," << p_GGA.altitude << "," 
+        << p_GGA.geo_separation << "," << p_GGA.last_DGPS << "," << p_GGA.station_id << std::endl;
+}
+
+void print_RMC( GPRMC& p_RMC ) {
+    std::cout << print_time( p_RMC.UTC ) << "," << p_RMC.status  << ","
+      << print_latitude( p_RMC.Latitude ) <<  "," << print_longitude( p_RMC.Longitude ) << ","
+      << p_RMC.SOG << "," << p_RMC.COG << ","
+      << print_date( p_RMC.current_date ) << ","
+      << p_RMC.mag_var << "," << p_RMC.ew_indicator << "," << p_RMC.mode << std::endl;
 }

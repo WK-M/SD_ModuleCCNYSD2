@@ -7,12 +7,13 @@
 #include <sstream>
 #include "NMEA_Sentences.h"
 
-#define DEBUG 0
+#define DEBUG 1
 
-
-void parse_GGA_sentence( std::stringstream& , std::vector< GPGGA >&  );
-void parse_RMC_sentence( std::stringstream& , std::vector< GPRMC >&  );
-
+void add_GGA( std::stringstream& , std::vector< GPGGA >&  );
+void add_RMC( std::stringstream& , std::vector< GPRMC >&  );
+void add_BME( std::stringstream& , std::vector< BME >&  );
+void parse_NMEA_GGA( const char*, const std::vector< GPGGA >&, const std::vector< BME >& );
+void parse_NMEA_RMC( const char*, const std::vector< GPRMC >&, const std::vector< BME >& );
 void print_GGA( GPGGA& );
 void print_RMC( GPRMC& );
 
@@ -24,28 +25,123 @@ int main( int argc, char* argv[] ) {
 
     std::vector< GPGGA > GPGGA_data;
     std::vector< GPRMC > GPRMC_data;
+    std::vector< BME > BME_data;
 
     std::ifstream file("data.txt");
     std::string line;
     while ( std::getline( file, line ) ) {
-        std::stringstream ss( line );
-        std::string GGA_RMC;
-        std::getline( ss, GGA_RMC, ',');
+        if ( line.empty() == false ) {
+            std::stringstream ss( line );
+            std::string GGA_RMC;
+            std::getline( ss, GGA_RMC, ',');
 
-        #if ( DEBUG )
+#if ( DEBUG )
             std::cout << line << std::endl;
 #endif 
-        if ( !GGA_RMC.compare("$GPGGA") ) {
-            parse_GGA_sentence( ss, GPGGA_data ); 
-        }
-        else {
-            parse_RMC_sentence( ss, GPRMC_data );
+            if ( GGA_RMC.compare("$GPGGA") == 0) {
+                add_GGA( ss, GPGGA_data ); 
+            }
+            else if ( GGA_RMC.compare("$GPRMC") == 0 ) {
+                add_RMC( ss, GPRMC_data );
+            }
+            else {
+                // BMEhere
+                add_BME( ss, BME_data );
+            }
+
         }
     }
+
+    int option = 0;
+
+    // Get time to setup for file
+    time_t t = time(0);
+      struct tm* now = localtime( &t );
+
+      char buffer[80];
+
+    // Create new csv for GPGGA specifically
+    if ( option == 0 ) {
+    strftime( buffer, 80, "%Y-%m-%d-%S_GPGGA.txt", now );
+    }
+
+    // Create new csv for GPRMC specifically
+    else {
+    strftime( buffer, 80, "%Y-%m-%d-%S_GPRMC.txt", now );
+    }
+
+    // Open new file and write GPGGA only or GPRMC only
+    parse_NMEA_GGA( buffer, GPGGA_data , BME_data );
+    parse_NMEA_RMC( buffer, GPRMC_data , BME_data );
+
     return 0;
 }
 
-void parse_GGA_sentence( std::stringstream& pggas_ss, std::vector< GPGGA >& pgs_GPGGA_data ) {
+void add_BME( std::stringstream& ss_BME, std::vector< BME >& RMC_GGA_data, std::vector< BME > BME_data) {
+    BME data;
+    std::string temp; 
+
+    // Get UTC data
+    std::getline( ss_BME, temp,  ',' );
+    data.pressure = std::stof( temp );
+
+    std::getline( ss_BME, temp,  ',' );
+    data.temperature = std::stof( temp );
+
+    std::getline( ss_BME, temp,  ',' );
+    data.altitude = std::stof( temp );
+
+    std::getline( ss_BME, temp,  ',' );
+    data.humidity = std::stof( temp );
+
+    RMC_GGA_data.push_back( data );
+}
+
+void parse_NMEA_GGA( const char* filename, const std::vector< GPGGA >& NMEA_GGA ) {
+    std::ofstream file( filename );
+    // Iterate through each vector
+    if ( file.is_open() ) {
+        for ( auto& NMEA : NMEA_GGA ) {
+            std::string r_string = format_UTC( NMEA.UTC ) + "," + format_LAT( NMEA.Latitude ) + "," + format_LONG( NMEA.Longitude ) + "," + std::to_string( NMEA.fix ) + "," + std::to_string( NMEA.num_sat ) + "," +  NMEA.HDOP + "," + NMEA.altitude + "," +  NMEA.geo_separation + "," +  NMEA.last_DGPS + "," + NMEA.station_id;
+            /*r_string += NMEA.station_id[0];
+              r_string += NMEA.station_id[1];
+              r_string += NMEA.station_id[2];
+              r_string += NMEA.station_id[3];*/
+            r_string += '\n';
+
+            file << r_string;
+        }
+
+        file.close();
+    }
+    else {
+        std::cout << "Error" << std::endl;
+    }
+}
+
+void parse_NMEA_RMC( const char* filename, const std::vector< GPRMC >& NMEA_RMC ) {
+    // Iterate through each vector
+    std::ofstream file( filename );
+    if ( file.is_open() ) {
+        for ( auto& NMEA : NMEA_RMC ) {
+            std::string r_string = format_UTC( NMEA.UTC ) + "," + NMEA.status + "," + format_LAT( NMEA.Latitude ) + "," + format_LONG( NMEA.Longitude ) + "," + std::to_string( NMEA.SOG) + "," + std::to_string( NMEA.COG ) + "," + format_date( NMEA.current_date ) + ",";
+            r_string += NMEA.mag_var;
+            r_string += ","; 
+            r_string += NMEA.ew_indicator; 
+            r_string += ","; 
+            r_string += NMEA.mode;
+            r_string += '\n';
+
+            file << r_string;
+        }
+        file.close();
+    }
+    else {
+        std::cout << "Error" << std::endl;
+    }
+}
+
+void add_GGA( std::stringstream& pggas_ss, std::vector< GPGGA >& pgs_GPGGA_data ) {
     GPGGA GGA;
     std::string temp; 
 
@@ -113,20 +209,22 @@ void parse_GGA_sentence( std::stringstream& pggas_ss, std::vector< GPGGA >& pgs_
     GGA.num_sat = std::stoi( temp );
 
     std::getline( pggas_ss, temp, ',' );
-    GGA.HDOP = std::stof( temp );
+    GGA.HDOP = temp;
 
     std::getline( pggas_ss, temp, ',' );
-    GGA.altitude = std::stof( temp );
+    GGA.altitude = temp;
 
-    std::getline( pggas_ss, temp, ',' );
-
-    std::getline( pggas_ss, temp, ',' );
-    GGA.geo_separation = std::stof( temp );
-
+    // Skip M
     std::getline( pggas_ss, temp, ',' );
 
     std::getline( pggas_ss, temp, ',' );
-    GGA.last_DGPS = std::stof(temp);
+    GGA.geo_separation = temp;
+
+    // Skip M
+    std::getline( pggas_ss, temp, ',' );
+
+    std::getline( pggas_ss, temp, ',' );
+    GGA.last_DGPS = temp;
 
     std::getline( pggas_ss, temp, ',' );
     strncpy( GGA.station_id, temp.c_str(), 4 );
@@ -134,7 +232,7 @@ void parse_GGA_sentence( std::stringstream& pggas_ss, std::vector< GPGGA >& pgs_
     pgs_GPGGA_data.push_back( GGA );
 }
 
-void parse_RMC_sentence( std::stringstream& prmcs_ss, std::vector< GPRMC >& pgs_GPRMC_data ) {
+void add_RMC( std::stringstream& prmcs_ss, std::vector< GPRMC >& pgs_GPRMC_data ) {
     GPRMC RMC;
     std::string temp; 
 
@@ -197,9 +295,11 @@ void parse_RMC_sentence( std::stringstream& prmcs_ss, std::vector< GPRMC >& pgs_
     std::getline( prmcs_ss, temp, ',' );
     RMC.Longitude.horiz = temp[0];
 
+    // Keep as float
     std::getline( prmcs_ss, temp, ',' );
     RMC.SOG = std::stof( temp );
 
+    // Keep as float
     std::getline( prmcs_ss, temp, ',' );
     RMC.COG = std::stof( temp );
 
@@ -215,6 +315,7 @@ void parse_RMC_sentence( std::stringstream& prmcs_ss, std::vector< GPRMC >& pgs_
         RMC.current_date.year[1] = temp[5];
     }
 
+    // Assume string
     std::getline( prmcs_ss, temp, ',' );
     RMC.mag_var[0] = temp[0];
     RMC.mag_var[1] = temp[1];
@@ -223,9 +324,11 @@ void parse_RMC_sentence( std::stringstream& prmcs_ss, std::vector< GPRMC >& pgs_
     RMC.mag_var[4] = temp[4];
 
 
+    // Assume char 
     std::getline( prmcs_ss, temp, ',' ); 
     RMC.ew_indicator = temp[0];
 
+    // Assume char
     std::getline( prmcs_ss, temp, ',' ); 
     RMC.mode = temp[0];
 
@@ -241,8 +344,8 @@ void print_GGA( GPGGA& p_GGA ) {
 
 void print_RMC( GPRMC& p_RMC ) {
     std::cout << print_time( p_RMC.UTC ) << "," << p_RMC.status  << ","
-      << print_latitude( p_RMC.Latitude ) <<  "," << print_longitude( p_RMC.Longitude ) << ","
-      << p_RMC.SOG << "," << p_RMC.COG << ","
-      << print_date( p_RMC.current_date ) << ","
-      << p_RMC.mag_var << "," << p_RMC.ew_indicator << "," << p_RMC.mode << std::endl;
+        << print_latitude( p_RMC.Latitude ) <<  "," << print_longitude( p_RMC.Longitude ) << ","
+        << p_RMC.SOG << "," << p_RMC.COG << ","
+        << print_date( p_RMC.current_date ) << ","
+        << p_RMC.mag_var << "," << p_RMC.ew_indicator << "," << p_RMC.mode << std::endl;
 }

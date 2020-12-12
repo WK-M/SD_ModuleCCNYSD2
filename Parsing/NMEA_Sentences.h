@@ -2,7 +2,7 @@
 // Also, ensure that PMTK Sentences are removed, the first line should eithe be a NMEA sentence (GPGGA/GPRMC)
 // This script allows data to be read from the .txt file from the SD Card stored during the TX_LoRAvX_X.ino file and 
 // outputs it to a specific .csv file for further specification.
-#include <iostream>
+#include <string>
 #include "NMEA_Helpers.h"
 
 /* GPGGA contains the following:
@@ -24,10 +24,10 @@ typedef struct NMEA1 {
     struct Long Longitude;
     int fix;
     int num_sat;
-    float HDOP;
-    float altitude;
-    float geo_separation;
-    float last_DGPS;
+    std::string HDOP;
+    std::string altitude;
+    std::string geo_separation;
+    std::string last_DGPS;
     char station_id[4];
 } GPGGA;
 
@@ -56,4 +56,11 @@ typedef struct NMEA2 {
     char ew_indicator;
     char mode;
 } GPRMC;
+
+typedef struct BME_Sensor_Data {
+    float temperature;
+    float pressure;
+    float altitude;
+    float humidity;
+} BME;
 

@@ -40,6 +40,39 @@ std::string print_date( const struct Date& d ) {
     r_string += d.year[0];
     r_string += d.year[1];
     return r_string;
+}
+
+std::string format_date( const struct Date& d ) {
+    std::string r_string;
+
+    r_string += d.day[0]; 
+    r_string += d.day[1];
+    r_string += "/";
+    r_string += d.month[0];
+    r_string += d.month[1];
+    r_string += "/";
+    r_string += d.year[0];
+    r_string += d.year[1];
+    return r_string;
+}
+
+std::string format_UTC( const struct Time& t ) {
+
+    std::string r_string;
+
+    r_string += t.hour[0];
+    r_string += t.hour[1];
+    r_string += ":";
+    r_string += t.minute[0];
+    r_string += t.minute[1];
+    r_string += ":";
+    r_string += t.seconds[0];
+    r_string += t.seconds[1];
+    r_string += ".";
+    r_string += t.dec_seconds[0];
+    r_string += t.dec_seconds[1];
+    r_string += t.dec_seconds[2];
+    return r_string;
 
 }
 
@@ -59,8 +92,45 @@ std::string print_time( const struct Time& t ) {
     return r_string;
 }
 
-std::string print_latitude( struct Lat& L ) {
+std::string format_LAT( const struct Lat& L ) {
     std::string r_string;
+
+    r_string += ( L.vert == 'N' ) ? "+" : "-";
+    r_string += L.degrees[0];
+    r_string += L.degrees[1];
+    r_string += " ";
+    r_string += L.minutes_bd[0];
+    r_string += L.minutes_bd[1];
+    r_string += ".";
+    r_string += L.minutes_ad[0];
+    r_string += L.minutes_ad[1];
+    r_string += L.minutes_ad[2];
+    r_string += L.minutes_ad[3];
+    r_string += "\'";
+    return r_string;
+}
+
+std::string format_LONG( const struct Long& L ) {
+    std::string r_string;
+
+    r_string += ( L.horiz == 'E' ) ? "+" : "-";
+    r_string += L.degrees[0];
+    r_string += L.degrees[1];
+    r_string += L.degrees[2];
+    r_string += " ";
+    r_string += L.minutes_bd[0];
+    r_string += L.minutes_bd[1];
+    r_string += ".";
+    r_string += L.minutes_ad[0];
+    r_string += L.minutes_ad[1];
+    r_string += L.minutes_ad[2];
+    r_string += L.minutes_ad[3];
+    r_string += "\'";
+    return r_string;
+}
+std::string print_latitude( const struct Lat& L ) {
+    std::string r_string;
+
     r_string += L.degrees[0];
     r_string += L.degrees[1];
     r_string += L.minutes_bd[0];
@@ -75,7 +145,7 @@ std::string print_latitude( struct Lat& L ) {
     return r_string;
 }
 
-std::string print_longitude( struct Long& L ) {
+std::string print_longitude( const struct Long& L ) {
     std::string r_string;
 
     r_string += L.degrees[0];

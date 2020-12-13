@@ -95,17 +95,26 @@ std::string print_time( const struct Time& t ) {
 std::string format_LAT( const struct Lat& L ) {
     std::string r_string;
 
-    r_string += ( L.vert == 'N' ) ? "+" : "-";
-    r_string += L.degrees[0];
-    r_string += L.degrees[1];
+    //r_string += ( L.vert == 'N' ) ? "+" : "-";
+    if ( L.vert == 'N' ) {
+        r_string = "+";
+    }
+    else if ( L.vert  == 'S') {
+        r_string = "-";
+    }
+    else {
+        r_string = "";
+    }
+    r_string += ( L.degrees[0] == '\0' ) ? "" : std::to_string( L.degrees[0] );
+    r_string += ( L.degrees[1] == '\0' ) ? "" : std::to_string( L.degrees[1] );
     r_string += " ";
-    r_string += L.minutes_bd[0];
-    r_string += L.minutes_bd[1];
+    r_string += ( L.minutes_bd[0] == '\0' ) ? "" : std::to_string( L.minutes_bd[0] );
+    r_string += ( L.minutes_bd[1] == '\0' ) ? "" : std::to_string( L.minutes_bd[1] );
     r_string += ".";
-    r_string += L.minutes_ad[0];
-    r_string += L.minutes_ad[1];
-    r_string += L.minutes_ad[2];
-    r_string += L.minutes_ad[3];
+    r_string += ( L.minutes_ad[0] == '\0' ) ? "" : std::to_string( L.minutes_ad[0] );
+    r_string += ( L.minutes_ad[1] == '\0' ) ? "" : std::to_string( L.minutes_ad[1] );
+    r_string += ( L.minutes_ad[2] == '\0' ) ? "" : std::to_string( L.minutes_ad[2] );
+    r_string += ( L.minutes_ad[3] == '\0' ) ? "" : std::to_string( L.minutes_ad[3] );
     r_string += "\'";
     return r_string;
 }
@@ -113,19 +122,40 @@ std::string format_LAT( const struct Lat& L ) {
 std::string format_LONG( const struct Long& L ) {
     std::string r_string;
 
-    r_string += ( L.horiz == 'E' ) ? "+" : "-";
-    r_string += L.degrees[0];
-    r_string += L.degrees[1];
-    r_string += L.degrees[2];
+    if ( L.horiz == 'E' ) {
+        r_string = "+";
+    }
+    else if ( L.horiz  == 'W') {
+        r_string = "-";
+    }
+    else {
+        r_string = "";
+    }
+    r_string += ( L.degrees[0] == '\0' ) ? "" : std::to_string( L.degrees[0] );
+    r_string += ( L.degrees[1] == '\0' ) ? "" : std::to_string( L.degrees[1] );
+    r_string += ( L.degrees[2] == '\0' ) ? "" : std::to_string( L.degrees[2] );
     r_string += " ";
-    r_string += L.minutes_bd[0];
-    r_string += L.minutes_bd[1];
-    r_string += ".";
-    r_string += L.minutes_ad[0];
-    r_string += L.minutes_ad[1];
-    r_string += L.minutes_ad[2];
-    r_string += L.minutes_ad[3];
-    r_string += "\'";
+    r_string += ( L.minutes_bd[0] == '\0' ) ? "" : std::to_string( L.minutes_bd[0] );
+    r_string += ( L.minutes_bd[1] == '\0' ) ? "" : std::to_string( L.minutes_bd[1] );
+
+    if ( L.minutes_bd[0] == '\0' && L.minutes_bd[1] == '\0' ) {
+        r_string += "";
+    }
+    else {
+        r_string += ".";
+    }
+    r_string += ( L.minutes_ad[0] == '\0' ) ? "" : std::to_string( L.minutes_ad[0] );
+    r_string += ( L.minutes_ad[1] == '\0' ) ? "" : std::to_string( L.minutes_ad[1] );
+    r_string += ( L.minutes_ad[2] == '\0' ) ? "" : std::to_string( L.minutes_ad[2] );
+    r_string += ( L.minutes_ad[3] == '\0' ) ? "" : std::to_string( L.minutes_ad[3] );
+
+    if ( L.minutes_ad[0] == '\0' && L.minutes_ad[1] == '\0' && L.minutes_ad[2] == '\0' &&  L.minutes_ad[3] == '\0' ) {
+        r_string += "";
+    }
+    else {
+        r_string += "\'";
+    }
+    //r_string += "\'";
     return r_string;
 }
 std::string print_latitude( const struct Lat& L ) {

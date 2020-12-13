@@ -7,27 +7,57 @@
 #include <sstream>
 #include "NMEA_Sentences.h"
 
-#define DEBUG 1
+#define DEBUG 0
+
 
 void add_GGA( std::stringstream& , std::vector< GPGGA >&  );
 void add_RMC( std::stringstream& , std::vector< GPRMC >&  );
 void add_BME( std::stringstream& , std::vector< BME >&  );
 void parse_NMEA_GGA( const char*, const std::vector< GPGGA >&, const std::vector< BME >& );
 void parse_NMEA_RMC( const char*, const std::vector< GPRMC >&, const std::vector< BME >& );
-void print_GGA( GPGGA& );
-void print_RMC( GPRMC& );
+void print_GGA( const GPGGA& );
+void print_RMC( const GPRMC& );
 
 int main( int argc, char* argv[] ) {
-    /*if ( argc < 2 ) {
-      std::cout << "Incorrect number of arguments." << std::endl;
+    bool f_RMC = false;
+    bool f_GGA = false;
+    bool f_LATLONG = false;
+
+    if ( argc < 2 ) {
+      std::cout << "./parser_exec [File name here] -o [OPTION]" << std::endl;
       exit(0);
-      }*/
+    }
+
+    if ( std::string( argv[2] ) == "-o" ) {
+
+        if ( argc < 4 ) {
+            std::cout << "Missing arguments" << std::endl;
+            exit(0);
+        }
+
+        if ( argc > 4 && argc < 7 ) {
+            for ( int i = 0; i < argc - 4; i++ ) {
+                if ( std::string(argv[i]) == "RMC" && f_RMC == false ) f_RMC = true;
+                else if ( std::string(argv[i]) == "GGA" && f_GGA == false ) f_GGA = true;
+                else if ( std::string(argv[i]) == "GEO" && f_LATLONG == false ) f_LATLONG = true;
+                else if ( std::string(argv[i]) == "RMCGGA" ) {
+                    f_RMC = true;
+                    f_GGA = true;
+                }
+            }
+        }
+
+    }
+    else {
+        std::cout << "The only valid argument is -o. " << std::endl;
+        exit(0);
+    }
 
     std::vector< GPGGA > GPGGA_data;
     std::vector< GPRMC > GPRMC_data;
     std::vector< BME > BME_data;
 
-    std::ifstream file("data.txt");
+    std::ifstream file(argv[1]);
     std::string line;
     while ( std::getline( file, line ) ) {
         if ( line.empty() == false ) {
@@ -48,67 +78,69 @@ int main( int argc, char* argv[] ) {
                 // BMEhere
                 add_BME( ss, BME_data );
             }
-
         }
     }
 
-    int option = 0;
+    //int option = 0;
+    //long convert = strtol( argv[2], ;
 
     // Get time to setup for file
     time_t t = time(0);
-      struct tm* now = localtime( &t );
+    struct tm* now = localtime( &t );
 
-      char buffer[80];
+    char buffer[80];
 
     // Create new csv for GPGGA specifically
-    if ( option == 0 ) {
-    strftime( buffer, 80, "%Y-%m-%d-%S_GPGGA.txt", now );
+    if ( f_GGA == true ) {
+        strftime( buffer, 80, "%Y-%m-%d-%S_GPGGA.txt", now );
+        parse_NMEA_GGA( buffer, GPGGA_data , BME_data );
+#if DEBUG
+        for ( auto data : GPGGA_data ) {
+                print_GGA( data );
+        }
+#endif
     }
 
     // Create new csv for GPRMC specifically
-    else {
-    strftime( buffer, 80, "%Y-%m-%d-%S_GPRMC.txt", now );
+    if ( f_RMC == true ) {
+        strftime( buffer, 80, "%Y-%m-%d-%S_GPRMC.txt", now );
+        parse_NMEA_RMC( buffer, GPRMC_data , BME_data );
+#if DEBUG
+        for ( auto data : GPRMC_data ) {
+                print_RMC( data );
+        }
+#endif
     }
 
-    // Open new file and write GPGGA only or GPRMC only
-    parse_NMEA_GGA( buffer, GPGGA_data , BME_data );
-    parse_NMEA_RMC( buffer, GPRMC_data , BME_data );
+    if ( f_LATLONG == true ) {
+        strftime( buffer, 80, "%Y-%m-%d-%S_GPRMC.txt", now );
+        parse_NMEA_RMC( buffer, GPRMC_data , BME_data );
+    }
+
 
     return 0;
 }
 
-void add_BME( std::stringstream& ss_BME, std::vector< BME >& RMC_GGA_data, std::vector< BME > BME_data) {
-    BME data;
-    std::string temp; 
 
-    // Get UTC data
-    std::getline( ss_BME, temp,  ',' );
-    data.pressure = std::stof( temp );
-
-    std::getline( ss_BME, temp,  ',' );
-    data.temperature = std::stof( temp );
-
-    std::getline( ss_BME, temp,  ',' );
-    data.altitude = std::stof( temp );
-
-    std::getline( ss_BME, temp,  ',' );
-    data.humidity = std::stof( temp );
-
-    RMC_GGA_data.push_back( data );
-}
-
-void parse_NMEA_GGA( const char* filename, const std::vector< GPGGA >& NMEA_GGA ) {
+void parse_NMEA_GGA( const char* filename, const std::vector< GPGGA >& NMEA_GGA, const std::vector< BME >& BME_GGA ) {
+    int i = 0;
     std::ofstream file( filename );
     // Iterate through each vector
     if ( file.is_open() ) {
         for ( auto& NMEA : NMEA_GGA ) {
-            std::string r_string = format_UTC( NMEA.UTC ) + "," + format_LAT( NMEA.Latitude ) + "," + format_LONG( NMEA.Longitude ) + "," + std::to_string( NMEA.fix ) + "," + std::to_string( NMEA.num_sat ) + "," +  NMEA.HDOP + "," + NMEA.altitude + "," +  NMEA.geo_separation + "," +  NMEA.last_DGPS + "," + NMEA.station_id;
+            std::string r_string = format_UTC( NMEA.UTC ) + "," + format_LAT( NMEA.Latitude ) + "," + format_LONG( NMEA.Longitude ) 
+                + "," + std::to_string( NMEA.fix ) + "," + std::to_string( NMEA.num_sat ) + "," 
+                +  NMEA.HDOP + "," + NMEA.altitude + "," +  NMEA.geo_separation + "," +  NMEA.last_DGPS 
+                + "," + NMEA.station_id + "," + std::to_string(BME_GGA[i].temperature) + ","
+                + std::to_string(BME_GGA[i].pressure) + "," 
+                + std::to_string(BME_GGA[i].altitude) + ","
+                + std::to_string(BME_GGA[i].humidity);
             /*r_string += NMEA.station_id[0];
               r_string += NMEA.station_id[1];
               r_string += NMEA.station_id[2];
               r_string += NMEA.station_id[3];*/
             r_string += '\n';
-
+            ++i;
             file << r_string;
         }
 
@@ -119,19 +151,26 @@ void parse_NMEA_GGA( const char* filename, const std::vector< GPGGA >& NMEA_GGA 
     }
 }
 
-void parse_NMEA_RMC( const char* filename, const std::vector< GPRMC >& NMEA_RMC ) {
+void parse_NMEA_RMC( const char* filename, const std::vector< GPRMC >& NMEA_RMC, const std::vector< BME >& BME_RMC ) {
     // Iterate through each vector
+    int i = 0;
     std::ofstream file( filename );
     if ( file.is_open() ) {
         for ( auto& NMEA : NMEA_RMC ) {
-            std::string r_string = format_UTC( NMEA.UTC ) + "," + NMEA.status + "," + format_LAT( NMEA.Latitude ) + "," + format_LONG( NMEA.Longitude ) + "," + std::to_string( NMEA.SOG) + "," + std::to_string( NMEA.COG ) + "," + format_date( NMEA.current_date ) + ",";
+            std::string r_string = format_UTC( NMEA.UTC ) + "," + NMEA.status + "," + format_LAT( NMEA.Latitude ) + "," 
+                + format_LONG( NMEA.Longitude ) + "," + std::to_string( NMEA.SOG) + "," + std::to_string( NMEA.COG ) + "," 
+                + format_date( NMEA.current_date );
             r_string += NMEA.mag_var;
             r_string += ","; 
             r_string += NMEA.ew_indicator; 
             r_string += ","; 
             r_string += NMEA.mode;
+            r_string += "," + std::to_string(BME_RMC[i].temperature) + "," 
+                + std::to_string(BME_RMC[i].pressure) + "," 
+                + std::to_string(BME_RMC[i].altitude) + "," 
+                + std::to_string(BME_RMC[i].humidity);
             r_string += '\n';
-
+            ++i;
             file << r_string;
         }
         file.close();
@@ -165,7 +204,7 @@ void add_GGA( std::stringstream& pggas_ss, std::vector< GPGGA >& pgs_GPGGA_data 
 
     std::getline( pggas_ss, temp, ',' );
     // Latitude
-    if ( temp.length() == 9) { 
+    if ( temp.length() == 9 ) { 
         GGA.Latitude.degrees[0] = temp[0];
         GGA.Latitude.degrees[1] = temp[1];
 
@@ -176,7 +215,18 @@ void add_GGA( std::stringstream& pggas_ss, std::vector< GPGGA >& pgs_GPGGA_data 
         GGA.Latitude.minutes_ad[1] = temp[6];
         GGA.Latitude.minutes_ad[2] = temp[7];
         GGA.Latitude.minutes_ad[3] = temp[8];
+    }
+    else {
+        GGA.Latitude.degrees[0] = '\0';
+        GGA.Latitude.degrees[1] = '\0';
 
+        GGA.Latitude.minutes_bd[0] = '\0';
+        GGA.Latitude.minutes_bd[1] = '\0';
+
+        GGA.Latitude.minutes_ad[0] = '\0';
+        GGA.Latitude.minutes_ad[1] = '\0';
+        GGA.Latitude.minutes_ad[2] = '\0';
+        GGA.Latitude.minutes_ad[3] = '\0';
     }
 
     // Get North/South
@@ -197,6 +247,19 @@ void add_GGA( std::stringstream& pggas_ss, std::vector< GPGGA >& pgs_GPGGA_data 
         GGA.Longitude.minutes_ad[1] = temp[7];
         GGA.Longitude.minutes_ad[2] = temp[8];
         GGA.Longitude.minutes_ad[3] = temp[9];
+    }
+    else {
+        GGA.Longitude.degrees[0] = '\0';
+        GGA.Longitude.degrees[1] = '\0';
+        GGA.Longitude.degrees[2] = '\0';
+
+        GGA.Longitude.minutes_bd[0] = '\0';
+        GGA.Longitude.minutes_bd[1] = '\0';
+
+        GGA.Longitude.minutes_ad[0] = '\0';
+        GGA.Longitude.minutes_ad[1] = '\0';
+        GGA.Longitude.minutes_ad[2] = '\0';
+        GGA.Longitude.minutes_ad[3] = '\0';
     }
 
     std::getline( pggas_ss, temp, ',' );
@@ -232,6 +295,26 @@ void add_GGA( std::stringstream& pggas_ss, std::vector< GPGGA >& pgs_GPGGA_data 
     pgs_GPGGA_data.push_back( GGA );
 }
 
+void add_BME( std::stringstream& ss_BME, std::vector< BME >& BME_data) {
+    BME data;
+    std::string temp; 
+
+    // Get UTC data
+    std::getline( ss_BME, temp, ',' );
+    data.pressure = std::stof( temp );
+
+    std::getline( ss_BME, temp,  ',' );
+    data.temperature = std::stof( temp );
+
+    std::getline( ss_BME, temp,  ',' );
+    data.altitude = std::stof( temp );
+
+    std::getline( ss_BME, temp,  ',' );
+    data.humidity = std::stof( temp );
+
+    BME_data.push_back( data );
+}
+
 void add_RMC( std::stringstream& prmcs_ss, std::vector< GPRMC >& pgs_GPRMC_data ) {
     GPRMC RMC;
     std::string temp; 
@@ -257,6 +340,7 @@ void add_RMC( std::stringstream& prmcs_ss, std::vector< GPRMC >& pgs_GPRMC_data 
     RMC.status = temp[0];
 
     std::getline( prmcs_ss, temp, ',' );
+
     // Latitude
     if ( temp.length() == 9) { 
         RMC.Latitude.degrees[0] = temp[0];
@@ -336,13 +420,13 @@ void add_RMC( std::stringstream& prmcs_ss, std::vector< GPRMC >& pgs_GPRMC_data 
 }
 
 // Debugging
-void print_GGA( GPGGA& p_GGA ) {
+void print_GGA( const GPGGA& p_GGA ) {
     std::cout << print_time( p_GGA.UTC ) << "," << print_latitude( p_GGA.Latitude ) << "," << print_longitude( p_GGA.Longitude ) << ","
         << p_GGA.fix << "," << p_GGA.num_sat << "," << p_GGA.HDOP <<  "," << p_GGA.altitude << "," 
         << p_GGA.geo_separation << "," << p_GGA.last_DGPS << "," << p_GGA.station_id << std::endl;
 }
 
-void print_RMC( GPRMC& p_RMC ) {
+void print_RMC( const GPRMC& p_RMC ) {
     std::cout << print_time( p_RMC.UTC ) << "," << p_RMC.status  << ","
         << print_latitude( p_RMC.Latitude ) <<  "," << print_longitude( p_RMC.Longitude ) << ","
         << p_RMC.SOG << "," << p_RMC.COG << ","

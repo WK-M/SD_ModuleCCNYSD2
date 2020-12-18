@@ -25,8 +25,7 @@ int main( int argc, char* argv[] ) {
     bool f_RMC = false;
     bool f_GGA = false;
     bool f_LATLONG = false;
-
-    if ( argc < 3 ) {
+if ( argc < 3 ) {
       std::cout << "./parser_exec [File name here] -o [OPTION]" << std::endl;
       exit(0);
     }
@@ -141,6 +140,7 @@ void parse_GEO( const std::string& filename, std::vector< GPRMC >& NMEA_RMC ) {
     if ( file.is_open() ) {
         for ( auto& NMEA: NMEA_RMC ) {
             std::string r_string = format_LAT( NMEA.Latitude ) + "," + format_LONG( NMEA.Longitude ) + "\n";
+            file << r_string;
         }
         file.close();
     }

@@ -1,4 +1,4 @@
-// Takes in textfile as argument, delimiter is a comma
+// This is not guaranteed to work on a Windows Workstation!
 #include <iostream>
 #include <vector>
 #include <string>
@@ -9,12 +9,15 @@
 
 #define DEBUG 0
 
+//Todo: 
+// - Maybe try to create a GUI
 
 void add_GGA( std::stringstream& , std::vector< GPGGA >&  );
 void add_RMC( std::stringstream& , std::vector< GPRMC >&  );
 void add_BME( std::stringstream& , std::vector< BME >&  );
-void parse_NMEA_GGA( const char*, const std::vector< GPGGA >&, const std::vector< BME >& );
-void parse_NMEA_RMC( const char*, const std::vector< GPRMC >&, const std::vector< BME >& );
+void parse_NMEA_GGA( const std::string&, const std::vector< GPGGA >&, const std::vector< BME >& );
+void parse_NMEA_RMC( const std::string&, const std::vector< GPRMC >&, const std::vector< BME >& );
+void parse_GEO( const std::string&, std::vector< GPRMC >& );
 void print_GGA( const GPGGA& );
 void print_RMC( const GPRMC& );
 
@@ -23,30 +26,31 @@ int main( int argc, char* argv[] ) {
     bool f_GGA = false;
     bool f_LATLONG = false;
 
-    if ( argc < 2 ) {
+    if ( argc < 3 ) {
       std::cout << "./parser_exec [File name here] -o [OPTION]" << std::endl;
       exit(0);
     }
 
     if ( std::string( argv[2] ) == "-o" ) {
-
         if ( argc < 4 ) {
-            std::cout << "Missing arguments" << std::endl;
+            std::cout << "Missing arguments!" << std::endl;
             exit(0);
         }
-
-        if ( argc > 4 && argc < 7 ) {
-            for ( int i = 0; i < argc - 4; i++ ) {
-                if ( std::string(argv[i]) == "RMC" && f_RMC == false ) f_RMC = true;
-                else if ( std::string(argv[i]) == "GGA" && f_GGA == false ) f_GGA = true;
-                else if ( std::string(argv[i]) == "GEO" && f_LATLONG == false ) f_LATLONG = true;
-                else if ( std::string(argv[i]) == "RMCGGA" ) {
-                    f_RMC = true;
-                    f_GGA = true;
+        if ( argc >= 4 && argc <= 7 ) {
+            for ( int i = 3; i < argc; i++ ) {
+                if ( std::string(argv[i]) == "RMC" ) f_RMC = true;
+                else if ( std::string(argv[i]) == "GGA" ) f_GGA = true;
+                else if ( std::string(argv[i]) == "GEO" ) f_LATLONG = true;
+                else {
+                    std::cout << "Option not recognized. Currently the following flags are working:\n"
+                            << "RMC - CSV File with RMC NMEA sentence only\n"
+                            << "GGA - CSV File with GGA NMEA sentence only\n"
+                            << "GEO - CSV File with Latitude and Longitude data only\n"
+                            << "Script does support multiple arguments, so outputting both RMC and GGA data will work\n"
+                            << "Example: ./parser_exec data.txt -o RMC GGA" << std::endl;
                 }
             }
         }
-
     }
     else {
         std::cout << "The only valid argument is -o. " << std::endl;
@@ -60,7 +64,7 @@ int main( int argc, char* argv[] ) {
     std::ifstream file(argv[1]);
     std::string line;
     while ( std::getline( file, line ) ) {
-        if ( line.empty() == false ) {
+        if ( line.empty() == false && line.compare("------") != 0 ) {
             std::stringstream ss( line );
             std::string GGA_RMC;
             std::getline( ss, GGA_RMC, ',');
@@ -81,19 +85,22 @@ int main( int argc, char* argv[] ) {
         }
     }
 
-    //int option = 0;
-    //long convert = strtol( argv[2], ;
-
     // Get time to setup for file
     time_t t = time(0);
     struct tm* now = localtime( &t );
 
     char buffer[80];
+    std::string save_file;
 
     // Create new csv for GPGGA specifically
     if ( f_GGA == true ) {
-        strftime( buffer, 80, "%Y-%m-%d-%S_GPGGA.txt", now );
-        parse_NMEA_GGA( buffer, GPGGA_data , BME_data );
+        strftime( buffer, 80, "%Y-%m-%d-%S_GPGGA_", now );
+        std::string inputted_file = std::string(argv[1]);
+        save_file += buffer;
+        save_file += inputted_file.substr(0, inputted_file.length() - 4 );
+        save_file += ".csv";
+
+        parse_NMEA_GGA( save_file, GPGGA_data , BME_data );
 #if DEBUG
         for ( auto data : GPGGA_data ) {
                 print_GGA( data );
@@ -103,8 +110,13 @@ int main( int argc, char* argv[] ) {
 
     // Create new csv for GPRMC specifically
     if ( f_RMC == true ) {
-        strftime( buffer, 80, "%Y-%m-%d-%S_GPRMC.txt", now );
-        parse_NMEA_RMC( buffer, GPRMC_data , BME_data );
+        strftime( buffer, 80, "%Y-%m-%d-%S_GPRMC_", now );
+        std::string inputted_file = std::string(argv[1]);
+        save_file = buffer;
+        save_file += inputted_file.substr(0, inputted_file.length() - 4 );
+        save_file += ".csv";
+
+        parse_NMEA_RMC( save_file, GPRMC_data , BME_data );
 #if DEBUG
         for ( auto data : GPRMC_data ) {
                 print_RMC( data );
@@ -113,16 +125,33 @@ int main( int argc, char* argv[] ) {
     }
 
     if ( f_LATLONG == true ) {
-        strftime( buffer, 80, "%Y-%m-%d-%S_GPRMC.txt", now );
-        parse_NMEA_RMC( buffer, GPRMC_data , BME_data );
+        strftime( buffer, 80, "%Y-%m-%d-%S_GEO_", now );
+        std::string inputted_file = std::string(argv[1]);
+        save_file = buffer;
+        save_file += inputted_file.substr(0, inputted_file.length() - 4 );
+        save_file += ".csv";
+        parse_GEO( save_file, GPRMC_data );
     }
-
-
     return 0;
 }
 
+void parse_GEO( const std::string& filename, std::vector< GPRMC >& NMEA_RMC ) {
+    std::ofstream file( filename );
 
-void parse_NMEA_GGA( const char* filename, const std::vector< GPGGA >& NMEA_GGA, const std::vector< BME >& BME_GGA ) {
+    if ( file.is_open() ) {
+        for ( auto& NMEA: NMEA_RMC ) {
+            std::string r_string = format_LAT( NMEA.Latitude ) + "," + format_LONG( NMEA.Longitude ) + "\n";
+        }
+        file.close();
+    }
+    else {
+        std::cout << "Error" << std::endl;
+    }
+    
+}
+
+
+void parse_NMEA_GGA( const std::string& filename, const std::vector< GPGGA >& NMEA_GGA, const std::vector< BME >& BME_GGA ) {
     int i = 0;
     std::ofstream file( filename );
     // Iterate through each vector
@@ -135,10 +164,6 @@ void parse_NMEA_GGA( const char* filename, const std::vector< GPGGA >& NMEA_GGA,
                 + std::to_string(BME_GGA[i].pressure) + "," 
                 + std::to_string(BME_GGA[i].altitude) + ","
                 + std::to_string(BME_GGA[i].humidity);
-            /*r_string += NMEA.station_id[0];
-              r_string += NMEA.station_id[1];
-              r_string += NMEA.station_id[2];
-              r_string += NMEA.station_id[3];*/
             r_string += '\n';
             ++i;
             file << r_string;
@@ -151,16 +176,20 @@ void parse_NMEA_GGA( const char* filename, const std::vector< GPGGA >& NMEA_GGA,
     }
 }
 
-void parse_NMEA_RMC( const char* filename, const std::vector< GPRMC >& NMEA_RMC, const std::vector< BME >& BME_RMC ) {
+void parse_NMEA_RMC( const std::string& filename, const std::vector< GPRMC >& NMEA_RMC, const std::vector< BME >& BME_RMC ) {
     // Iterate through each vector
     int i = 0;
     std::ofstream file( filename );
     if ( file.is_open() ) {
         for ( auto& NMEA : NMEA_RMC ) {
             std::string r_string = format_UTC( NMEA.UTC ) + "," + NMEA.status + "," + format_LAT( NMEA.Latitude ) + "," 
-                + format_LONG( NMEA.Longitude ) + "," + std::to_string( NMEA.SOG) + "," + std::to_string( NMEA.COG ) + "," 
-                + format_date( NMEA.current_date );
-            r_string += NMEA.mag_var;
+                + format_LONG( NMEA.Longitude ) + "," + std::to_string( NMEA.SOG ) + "," + std::to_string( NMEA.COG ) + "," 
+                + format_date( NMEA.current_date ) + ",";
+            r_string += NMEA.mag_var[0];
+            r_string += NMEA.mag_var[1];
+            r_string += NMEA.mag_var[2];
+            r_string += NMEA.mag_var[3];
+            r_string += NMEA.mag_var[4];
             r_string += ","; 
             r_string += NMEA.ew_indicator; 
             r_string += ","; 
@@ -353,7 +382,11 @@ void add_RMC( std::stringstream& prmcs_ss, std::vector< GPRMC >& pgs_GPRMC_data 
         RMC.Latitude.minutes_ad[1] = temp[6];
         RMC.Latitude.minutes_ad[2] = temp[7];
         RMC.Latitude.minutes_ad[3] = temp[8];
-
+    }
+    else {
+        memset(RMC.Latitude.degrees, '\0' , 2);
+        memset(RMC.Latitude.minutes_bd, '\0', 2);
+        memset(RMC.Latitude.minutes_ad, '\0', 4);
     }
 
     // Get North/South
@@ -374,6 +407,19 @@ void add_RMC( std::stringstream& prmcs_ss, std::vector< GPRMC >& pgs_GPRMC_data 
         RMC.Longitude.minutes_ad[1] = temp[7];
         RMC.Longitude.minutes_ad[2] = temp[8];
         RMC.Longitude.minutes_ad[3] = temp[9];
+    }
+    else {
+        RMC.Longitude.degrees[0] = '\0';
+        RMC.Longitude.degrees[1] = '\0';
+        RMC.Longitude.degrees[2] = '\0';
+
+        RMC.Longitude.minutes_bd[0] = '\0';
+        RMC.Longitude.minutes_bd[1] = '\0';
+
+        RMC.Longitude.minutes_ad[0] = '\0';
+        RMC.Longitude.minutes_ad[1] = '\0';
+        RMC.Longitude.minutes_ad[2] = '\0';
+        RMC.Longitude.minutes_ad[3] = '\0';
     }
 
     std::getline( prmcs_ss, temp, ',' );
@@ -401,16 +447,22 @@ void add_RMC( std::stringstream& prmcs_ss, std::vector< GPRMC >& pgs_GPRMC_data 
 
     // Assume string
     std::getline( prmcs_ss, temp, ',' );
-    RMC.mag_var[0] = temp[0];
-    RMC.mag_var[1] = temp[1];
-    RMC.mag_var[2] = temp[2];
-    RMC.mag_var[3] = '.';
-    RMC.mag_var[4] = temp[4];
+
+    if ( !temp.empty() ) {
+        RMC.mag_var[0] = temp[0];
+        RMC.mag_var[1] = temp[1];
+        RMC.mag_var[2] = temp[2];
+        RMC.mag_var[3] = '.';
+        RMC.mag_var[4] = temp[4];
+    }
+    else {
+        memset(RMC.mag_var, 0, 5 );
+    }
 
 
     // Assume char 
     std::getline( prmcs_ss, temp, ',' ); 
-    RMC.ew_indicator = temp[0];
+    RMC.ew_indicator = ( temp.length() == 1 ) ? temp[0] : '\0';
 
     // Assume char
     std::getline( prmcs_ss, temp, ',' ); 
@@ -428,7 +480,7 @@ void print_GGA( const GPGGA& p_GGA ) {
 
 void print_RMC( const GPRMC& p_RMC ) {
     std::cout << print_time( p_RMC.UTC ) << "," << p_RMC.status  << ","
-        << print_latitude( p_RMC.Latitude ) <<  "," << print_longitude( p_RMC.Longitude ) << ","
+        << print_latitude( p_RMC.Latitude ) << "," << print_longitude( p_RMC.Longitude ) << ","  
         << p_RMC.SOG << "," << p_RMC.COG << ","
         << print_date( p_RMC.current_date ) << ","
         << p_RMC.mag_var << "," << p_RMC.ew_indicator << "," << p_RMC.mode << std::endl;
